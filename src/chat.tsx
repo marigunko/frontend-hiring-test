@@ -7,32 +7,8 @@ import {
 } from "../__generated__/resolvers-types";
 import css from "./chat.module.css";
 
-import { gql, useMutation, useQuery, useSubscription } from "@apollo/client";
-import { GET_MESSAGES } from "./graphql/queries";
-
-const SEND_MESSAGE = gql`
-  mutation SendMessage($text: String!) {
-    sendMessage(text: $text) {
-      id
-      text
-      status
-      updatedAt
-      sender
-    }
-  }
-`;
-
-const MESSAGE_ADDED = gql`
-  subscription MessageAdded {
-    messageAdded {
-      id
-      text
-      status
-      updatedAt
-      sender
-    }
-  }
-`;
+import { useMutation, useQuery, useSubscription } from "@apollo/client";
+import { GET_MESSAGES, MESSAGE_ADDED, SEND_MESSAGE } from "./graphql/queries";
 
 export const Chat: React.FC = () => {
 
@@ -48,6 +24,7 @@ export const Chat: React.FC = () => {
 
   useSubscription(MESSAGE_ADDED, {
     onSubscriptionData: ({ subscriptionData }) => {
+      const newMessage = subscriptionData.data?.messageAdded;
       if (newMessage) {
         setMessages((prev) => [...prev, newMessage]);
       }
