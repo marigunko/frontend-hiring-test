@@ -7,12 +7,24 @@ import {
 } from "../__generated__/resolvers-types";
 import css from "./chat.module.css";
 
-import { gql, useMutation, useQuery } from "@apollo/client";
+import { gql, useMutation, useQuery, useSubscription } from "@apollo/client";
 import { GET_MESSAGES } from "./graphql/queries";
 
 const SEND_MESSAGE = gql`
   mutation SendMessage($text: String!) {
     sendMessage(text: $text) {
+      id
+      text
+      status
+      updatedAt
+      sender
+    }
+  }
+`;
+
+const MESSAGE_ADDED = gql`
+  subscription MessageAdded {
+    messageAdded {
       id
       text
       status
@@ -32,6 +44,23 @@ export const Chat: React.FC = () => {
 
   const [sendMessage] = useMutation(SEND_MESSAGE);
 
+  const [messages, setMessages] = useState<Message[]>([]);
+
+  useSubscription(MESSAGE_ADDED, {
+    onSubscriptionData: ({ subscriptionData }) => {
+      if (newMessage) {
+        setMessages((prev) => [...prev, newMessage]);
+      }
+    },
+  });
+
+  React.useEffect(() => {
+    if (data?.messages?.edges) {
+      const initialMessages = data.messages.edges.map((edge: any) => edge.node);
+      setMessages(initialMessages);
+    }
+  }, [data]);
+
   const handleSend = async () => {
     if (!text.trim()) return;
     try {
@@ -44,8 +73,6 @@ export const Chat: React.FC = () => {
 
   if (loading) return <div>Loading...</div>;
   if (error) return <div>Error loading messages</div>;
-
-  const messages = data?.messages?.edges.map((edge: any) => edge.node) || [];
 
   const Item: React.FC<Message> = ({ text, sender }) => (
     <div className={css.item}>
