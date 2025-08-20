@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { ItemContent, Virtuoso } from "react-virtuoso";
 import cn from "clsx";
 import {
@@ -7,11 +7,47 @@ import {
 } from "../__generated__/resolvers-types";
 import css from "./chat.module.css";
 
-import { useQuery } from "@apollo/client";
+import { gql, useMutation, useQuery } from "@apollo/client";
 import { GET_MESSAGES } from "./graphql/queries";
 
-const Item: React.FC<Message> = ({ text, sender }) => {
-  return (
+const SEND_MESSAGE = gql`
+  mutation SendMessage($text: String!) {
+    sendMessage(text: $text) {
+      id
+      text
+      status
+      updatedAt
+      sender
+    }
+  }
+`;
+
+export const Chat: React.FC = () => {
+
+  const [text, setText] = useState("");
+
+  const { data, loading, error } = useQuery(GET_MESSAGES, {
+    variables: { first: 20 },
+  });
+
+  const [sendMessage] = useMutation(SEND_MESSAGE);
+
+  const handleSend = async () => {
+    if (!text.trim()) return;
+    try {
+      await sendMessage({ variables: { text } });
+      setText("");
+    } catch (err) {
+      console.error("Error sending message:", err);
+    }
+  };
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error loading messages</div>;
+
+  const messages = data?.messages?.edges.map((edge: any) => edge.node) || [];
+
+  const Item: React.FC<Message> = ({ text, sender }) => (
     <div className={css.item}>
       <div
         className={cn(
@@ -23,23 +59,8 @@ const Item: React.FC<Message> = ({ text, sender }) => {
       </div>
     </div>
   );
-};
 
-const getItem: ItemContent<Message, unknown> = (_, data) => {
-  return <Item {...data} />;
-};
-
-export const Chat: React.FC = () => {
-
-  const { data, loading, error } = useQuery(GET_MESSAGES, {
-    variables: { first: 20 },
-  });
-
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error loading messages</div>;
-
-  const messages: Message[] =
-    data?.messages?.edges.map((edge: any) => edge.node) || [];
+  const getItem: ItemContent<Message, unknown> = (_, data) => <Item {...data} />;
 
 
   return (
@@ -52,8 +73,10 @@ export const Chat: React.FC = () => {
           type="text"
           className={css.textInput}
           placeholder="Message text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
         />
-        <button>Send</button>
+        <button onClick={handleSend}>Send</button>
       </div>
     </div>
   );
