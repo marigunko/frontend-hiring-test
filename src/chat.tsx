@@ -18,7 +18,39 @@ export const Chat: React.FC = () => {
     variables: { first: 20 },
   });
 
-  const [sendMessage] = useMutation(SEND_MESSAGE);
+const [sendMessage] = useMutation(SEND_MESSAGE, {
+  update(cache, { data }) {
+    const newMessage = data?.sendMessage;
+    if (!newMessage) return;
+
+    cache.modify({
+      fields: {
+        messages(existing = { edges: [] }) {
+          const exists = existing.edges.some(
+            (edge: any) => edge.node.id === newMessage.id
+          );
+
+          if (exists) {
+            return {
+              ...existing,
+              edges: existing.edges.map((edge: any) =>
+                edge.node.id === newMessage.id &&
+                new Date(edge.node.updatedAt) < new Date(newMessage.updatedAt)
+                  ? { ...edge, node: newMessage }
+                  : edge
+              ),
+            };
+          }
+
+            ...existing,
+            edges: [...existing.edges, { __typename: "MessageEdge", node: newMessage }],
+          };
+        },
+      },
+    });
+  },
+});
+
 
   const [messages, setMessages] = useState<Message[]>([]);
 
